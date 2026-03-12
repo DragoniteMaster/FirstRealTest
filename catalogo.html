@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Catálogo Loja</title>
+
+<link rel="icon" type="image/png" href="gengar.png">
+<link rel="apple-touch-icon" href="gengar.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0f172a">
+
+<style>
+
+body{
+font-family: Arial;
+background:#0f172a;
+color:white;
+padding:20px;
+font-size:18px;
+}
+
+input,select{
+width:100%;
+padding:12px;
+margin-top:5px;
+margin-bottom:10px;
+font-size:16px;
+border-radius:8px;
+border:none;
+}
+
+button{
+padding:8px;
+font-size:13px;
+margin:2px;
+border:none;
+border-radius:6px;
+cursor:pointer;
+}
+
+.grid-produtos{
+display:grid;
+grid-template-columns:repeat(3,1fr);
+gap:10px;
+}
+
+.produto-card{
+background:#1e293b;
+padding:10px;
+border-radius:10px;
+display:flex;
+flex-direction:column;
+justify-content:space-between;
+}
+
+.produto-nome{
+font-weight:bold;
+}
+
+.produto-preco{
+color:#38bdf8;
+font-weight:bold;
+}
+
+.botoes{
+display:flex;
+justify-content:space-between;
+margin-top:8px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<h1>Catálogo de Produtos</h1>
+
+<h2>Adicionar Produto</h2>
+
+<input id="nome" placeholder="Nome do produto">
+<input id="descricao" placeholder="Descrição">
+<input id="preco" placeholder="Preço">
+
+<select id="categoria">
+<option value="">Categoria</option>
+<option>Shampoo</option>
+<option>Cera</option>
+<option>Pneu Pretinho</option>
+<option>Vidro</option>
+<option>Polimento</option>
+<option>Cheirinho</option>
+<option>Acessórios</option>
+<option>Moto</option>
+</select>
+
+<select id="tamanho">
+<option value="">Tamanho</option>
+<option>240ml</option>
+<option>500ml</option>
+<option>1,5L</option>
+<option>5L</option>
+</select>
+
+<button onclick="adicionarProduto()">Adicionar Produto</button>
+
+<hr>
+
+<h2>Backup</h2>
+
+<button onclick="exportarBackup()">Exportar Produtos</button>
+<input type="file" id="importarArquivo" onchange="importarBackup()">
+
+<hr>
+
+<h2>Buscar</h2>
+<input id="busca" placeholder="Digite o nome..." oninput="mostrarProdutos()">
+
+<hr>
+
+<h2>Produtos</h2>
+<div id="listaProdutos" class="grid-produtos"></div>
+
+<hr>
+
+<h2>Carrinho</h2>
+<div id="listaCarrinho"></div>
+<h3 id="total">Total: R$ 0</h3>
+<button onclick="desconto(5)">5% desconto</button>
+<button onclick="desconto(10)">10% desconto</button>
+
+<div id="modalEditar" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:#000000aa;display:flex;justify-content:center;align-items:center;">
+<div style="background:#1e293b;padding:20px;border-radius:10px;width:90%;max-width:400px;">
+
+<h2>Editar Produto</h2>
+<input id="editNome">
+<input id="editDescricao">
+<input id="editPreco">
+<select id="editCategoria">
+<option value="">Categoria</option>
+<option>Shampoo</option>
+<option>Cera</option>
+<option>Pneu Pretinho</option>
+<option>Vidro</option>
+<option>Polimento</option>
+<option>Cheirinho</option>
+<option>Acessórios</option>
+<option>Moto</option>
+</select>
+<select id="editTamanho">
+<option value="">Tamanho</option>
+<option>240ml</option>
+<option>500ml</option>
+<option>1,5L</option>
+<option>5L</option>
+</select>
+<button onclick="salvarEdicao()">Salvar</button>
+<button onclick="fecharEdicao()">Cancelar</button>
+
+</div>
+</div>
+
+<script>
+let carrinho=[];
+let produtoEditando=null;
+
+function pegarProdutos(){ return JSON.parse(localStorage.getItem("produtos")) || []; }
+function salvarProdutos(produtos){ localStorage.setItem("produtos",JSON.stringify(produtos)); }
+
+function adicionarProduto(){
+let produtos=pegarProdutos();
+let nome=document.getElementById("nome").value;
+let descricao=document.getElementById("descricao").value;
+let preco=parseFloat(document.getElementById("preco").value);
+let categoria=document.getElementById("categoria").value;
+let tamanho=document.getElementById("tamanho").value;
+produtos.push({nome,descricao,preco,categoria,tamanho});
+salvarProdutos(produtos);
+mostrarProdutos();
+document.getElementById("nome").value="";
+document.getElementById("descricao").value="";
+document.getElementById("preco").value="";
+}
+
+function mostrarProdutos(){
+let produtos=pegarProdutos();
+let busca=document.getElementById("busca").value.toLowerCase();
+let lista=document.getElementById("listaProdutos");
+lista.innerHTML="";
+produtos.forEach((p,i)=>{
+if(!p.nome.toLowerCase().includes(busca)) return;
+lista.innerHTML+=`
+<div class="produto-card">
+<div>
+<div class="produto-nome">${p.nome}</div>
+<div>${p.descricao}</div>
+<div>${p.categoria || "-"} • ${p.tamanho || "-"}</div>
+<div class="produto-preco">R$ ${p.preco}</div>
+</div>
+<div class="botoes">
+<button onclick="adicionarCarrinho(${i})">+</button>
+<button onclick="editarProduto(${i})">✎</button>
+<button onclick="duplicarProduto(${i})">⧉</button>
+</div>
+</div>`;
+});
+}
+
+function duplicarProduto(index){
+let produtos=pegarProdutos();
+let copia={...produtos[index]};
+produtos.push(copia);
+salvarProdutos(produtos);
+mostrarProdutos();
+}
+
+function adicionarCarrinho(index){
+let produtos=pegarProdutos();
+carrinho.push(produtos[index]);
+atualizarCarrinho();
+}
+
+function atualizarCarrinho(){
+let lista=document.getElementById("listaCarrinho");
+lista.innerHTML="";
+let total=0;
+carrinho.forEach((p,i)=>{
+total+=Number(p.preco);
+lista.innerHTML+=`<div>${p.nome} - R$ ${p.preco} <button onclick="removerCarrinho(${i})">X</button></div>`;
+});
+document.getElementById("total").innerText="Total: R$ "+total.toFixed(2);
+}
+
+function removerCarrinho(index){ carrinho.splice(index,1); atualizarCarrinho(); }
+
+function desconto(valor){
+let total=0;
+carrinho.forEach(p=>{ total+=Number(p.preco); });
+let final=total-(total*(valor/100));
+document.getElementById("total").innerText="Total com desconto: R$ "+final.toFixed(2);
+}
+
+function editarProduto(index){
+let produtos=pegarProdutos();
+let produto=produtos[index];
+produtoEditando=index;
+document.getElementById("editNome").value=produto.nome;
+document.getElementById("editDescricao").value=produto.descricao;
+document.getElementById("editPreco").value=produto.preco;
+document.getElementById("editCategoria").value=produto.categoria;
+document.getElementById("editTamanho").value=produto.tamanho;
+document.getElementById("modalEditar").style.display="flex";
+}
+
+function salvarEdicao(){
+let produtos=pegarProdutos();
+produtos[produtoEditando]={
+nome:document.getElementById("editNome").value,
+descricao:document.getElementById("editDescricao").value,
+preco:parseFloat(document.getElementById("editPreco").value),
+categoria:document.getElementById("editCategoria").value,
+tamanho:document.getElementById("editTamanho").value
+};
+salvarProdutos(produtos);
+fecharEdicao();
+mostrarProdutos();
+}
+
+function fecharEdicao(){ document.getElementById("modalEditar").style.display="none"; }
+
+function exportarBackup(){
+let produtos = pegarProdutos();
+let dados = JSON.stringify(produtos);
+let blob = new Blob([dados], {type:"application/json"});
+let link = document.createElement("a");
+link.href = URL.createObjectURL(blob);
+link.download = "produtos_loja.json";
+link.click();
+}
+
+function importarBackup(){
+let arquivo = document.getElementById("importarArquivo").files[0];
+let leitor = new FileReader();
+leitor.onload = function(e){
+let produtos = JSON.parse(e.target.result);
+salvarProdutos(produtos);
+mostrarProdutos();
+alert("Produtos importados com sucesso!");
+};
+leitor.readAsText(arquivo);
+}
+
+mostrarProdutos();
+</script>
+
+<script>
+if('serviceWorker' in navigator){
+navigator.serviceWorker.register('service-worker.js');
+}
+</script>
+
+</body>
+</html>
